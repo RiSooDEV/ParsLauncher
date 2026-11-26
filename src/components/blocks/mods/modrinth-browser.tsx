@@ -309,10 +309,28 @@ function ModrinthHit({
     return (versions ?? []).slice(0, 10).map((version) => {
       const isDownloaded = downloadedVersionIds.includes(version.id);
       const size = formatSize(version.primaryFile.size);
+      // Mirror of the backend's hard compatibility gate: grey out
+      // versions that don't match the instance before they are even
+      // attempted (the backend re-checks on download regardless).
+      const gameOk =
+        !version.gameVersions?.length ||
+        version.gameVersions.includes(gameVersion);
+      const loaderOk =
+        activeCategory !== "mods" ||
+        !version.loaders?.length ||
+        (loader !== "" &&
+          version.loaders.some((l) => l.toLowerCase() === loader));
+      const compatible = gameOk && loaderOk;
+      const incompatibleHint = !gameOk
+        ? `Targets MC ${(version.gameVersions ?? []).slice(0, 3).join(", ") || "?"} — instance is ${gameVersion}`
+        : !loaderOk
+          ? `Targets ${(version.loaders ?? []).join("/")} — instance is ${loader || "vanilla"}`
+          : "";
       return (
         <div
           className="flex items-center justify-between rounded-lg bg-secondary/40 px-3 py-2"
           key={version.id}
+          title={compatible ? undefined : incompatibleHint}
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -322,10 +340,18 @@ function ModrinthHit({
               <span className="shrink-0 text-[10px] text-muted-foreground">
                 {formatDate(version.datePublished)}
               </span>
+              {!compatible && (
+                <span className="shrink-0 rounded bg-destructive/15 px-1.5 py-0.5 font-semibold text-[10px] text-destructive">
+                  Incompatible
+                </span>
+              )}
             </div>
             <span className="text-[10px] text-muted-foreground">
               {version.primaryFile.filename}
               {size ? ` · ${size}` : ""}
+              {activeCategory === "mods" && version.loaders?.length
+                ? ` · ${version.loaders.join("/")}`
+                : ""}
             </span>
           </div>
 
@@ -334,8 +360,9 @@ function ModrinthHit({
               await handleDownload(version);
             }}
             className="h-8 gap-1.5 px-3 text-xs"
-            disabled={isDownloading}
+            disabled={isDownloading || !compatible}
             size="sm"
+            title={compatible ? undefined : incompatibleHint}
           >
             {isDownloading ? (
               <Spinner className="h-3.5 w-3.5" />

@@ -10,6 +10,7 @@ import AssistantPage from "./pages/assistant";
 import Console from "./pages/console.tsx";
 import Servers from "./pages/servers";
 import Downloads from "./pages/downloads";
+import SkinPage from "./pages/skin";
 import Achievements from "./pages/pars/achievements";
 import Badges from "./pages/pars/badges";
 import Journey from "./pages/pars/journey";
@@ -21,6 +22,7 @@ export const router = createMemoryRouter([
     children: [
       { element: <IndexPage />, path: "/" },
       { element: <Servers />, path: "/servers" },
+      { element: <SkinPage />, path: "/skin" },
       { element: <Library />, path: "/library" },
       { element: <ParsProfile />, path: "/profile" },
       { element: <AssistantPage />, path: "/assistant" },

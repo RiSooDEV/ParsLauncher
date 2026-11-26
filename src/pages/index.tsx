@@ -1,8 +1,10 @@
-import { Alert01Icon } from "@hugeicons/core-free-icons";
+import { Alert01Icon, Download01Icon, Package01Icon, ServerIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { listen } from "@tauri-apps/api/event";
-import { Check, Pencil, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Check, Pencil, Shirt, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
@@ -23,61 +25,274 @@ import { errorText } from "@/messages";
 import { useConfig } from "@/stores/config";
 import { useLocale } from "@/stores/locale";
 
-const WALLPAPERS = ["/wallpapers/wallpaper.png"];
+const WALLPAPER = "/wallpapers/wallpaper.png";
 
-function WallpaperSlideshow() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <img
-        alt="Minecraft artwork"
-        className="absolute inset-0 size-full object-cover object-center"
-        height={1080}
-        src="/wallpapers/wallpaper.png"
-        width={1920}
-      />
-    </div>
-  );
-}
-
+/**
+ * Home — Pars Launcher's own dashboard layout (hero play panel + side
+ * rail). Structurally distinct from the upstream fork's full-bleed
+ * wallpaper + bottom bar: play action front and center, skin preview,
+ * stats and quick actions in a side column.
+ */
 export default function IndexPage() {
   useStartupDirectConnect();
 
   return (
-    <div className="h-full">
-      {/* Main Content Area */}
-      <div className="relative flex h-full flex-1 flex-col overflow-hidden rounded-xl bg-black">
-        {/* Launcher key art slideshow (15-minute fade cycle) */}
-        <WallpaperSlideshow />
+    <div className="grid h-full min-h-0 animate-fade-up gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <HeroPanel />
+      <SideRail />
+    </div>
+  );
+}
 
-        {/* Gradient Overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/15 via-black/20 to-black/80" />
+/* ── Hero panel ──────────────────────────────────────────────────────── */
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-1 flex-col justify-end p-8">
-          <div className="max-w-2xl">
-            <h2 className="mb-4 w-fit bg-transparent font-black text-5xl text-white mix-blend-difference [text-shadow:0_2px_10px_rgba(127,127,127,0.45)]">
+function HeroPanel() {
+  const { locale } = useLocale();
+  const isFa = locale === "fa";
+
+  return (
+    <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+      <img
+        alt=""
+        aria-hidden
+        className="absolute inset-0 size-full object-cover object-center opacity-90"
+        height={1080}
+        src={WALLPAPER}
+        width={1920}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-black/35 to-black/90" />
+
+      <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
+        {/* Top badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-black/50 px-3 py-1 font-bold text-[10px] text-primary uppercase tracking-[0.16em] backdrop-blur-md">
+            <Sparkles className="size-3" />
+            MethoriaCraft
+          </span>
+          <span className="rounded-full border border-white/15 bg-black/50 px-3 py-1 font-semibold text-[10px] text-white/70 uppercase tracking-[0.16em] backdrop-blur-md">
+            Offline Ready
+          </span>
+        </div>
+
+        {/* Center title + play */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 py-4">
+          <div className="text-center">
+            <h1 className="font-black text-4xl text-white mix-blend-difference [text-shadow:0_2px_14px_rgba(0,0,0,0.6)] xl:text-5xl">
               Pars Launcher
-            </h2>
+            </h1>
+            <p className="mt-2 font-medium text-white/55 text-xs">
+              {isFa
+                ? "لانچر آفلاین اختصاصی مدوریا کرافت"
+                : "The dedicated offline launcher for MethoriaCraft"}
+            </p>
+          </div>
+
+          <div className="relative w-full max-w-sm">
+            <PlayButton />
           </div>
         </div>
 
-        {/* Bottom Action Bar */}
-        <div className="relative z-10 flex h-24 items-center justify-between border-white/[0.08] border-t bg-black/65 px-8 shadow-[0_-12px_40px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-          <div className="flex w-[340px] flex-col gap-1.5">
-            <span className="font-semibold text-[11px] text-muted-foreground/70 uppercase tracking-wider">
-              Minecraft Instance
-            </span>
+        {/* Instance selector strip */}
+        <div className="mx-auto w-full max-w-md rounded-xl border border-white/10 bg-black/55 p-3 shadow-lg backdrop-blur-xl">
+          <span className="font-semibold text-[10px] text-white/50 uppercase tracking-wider">
+            Minecraft Instance
+          </span>
+          <div className="mt-1.5">
             <VersionSelect />
-          </div>
-
-          <div className="w-64">
-            <PlayButton />
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+/* ── Side rail ───────────────────────────────────────────────────────── */
+
+function SideRail() {
+  const { data: profile } = useBackend({
+    name: "pars_get_profile",
+  });
+
+  const stats = profile?.statistics;
+
+  return (
+    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 xl:pb-0">
+      <SkinCard />
+
+      <div className="glass rounded-2xl p-4">
+        <div className="font-bold text-[11px] text-muted-foreground uppercase tracking-wider">
+          Your stats
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <StatTile
+            label={stats ? `${Math.floor(stats.totalPlaytimeSeconds / 3600)}h` : "—"}
+            title="Playtime"
+          />
+          <StatTile
+            label={stats ? String(stats.totalSessions) : "—"}
+            title="Sessions"
+          />
+          <StatTile
+            label={stats ? String(stats.achievementsUnlocked) : "—"}
+            title="Achievements"
+          />
+        </div>
+      </div>
+
+      <QuickLinks />
+    </div>
+  );
+}
+
+function StatTile({ label, title }: { label: string; title: string }) {
+  return (
+    <div className="rounded-xl border border-border/40 bg-secondary/30 px-2 py-2.5 text-center">
+      <div className="font-black text-lg text-glow">{label}</div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground">{title}</div>
+    </div>
+  );
+}
+
+function SkinCard() {
+  const navigate = useNavigate();
+  const { data: selectedProfile } = useBackend({
+    name: "get_selected_profile",
+  });
+
+  const [activeSkin, setActiveSkin] = useState<{
+    skinUrlOrData: string;
+    model: "default" | "slim";
+    capeUrl: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    invoke<{
+      skinUrlOrData: string;
+      model: "default" | "slim";
+      capeUrl: string | null;
+    } | null>("pars_get_active_skin")
+      .then(setActiveSkin)
+      .catch(() => {});
+  }, []);
+
+  const skinUrl = activeSkin?.skinUrlOrData ?? null;
+  const model = activeSkin?.model ?? "default";
+  const hasCape = Boolean(activeSkin?.capeUrl);
+  const username = selectedProfile?.username ?? "Player";
+
+  return (
+    <button
+      className="glass group flex items-center gap-3 rounded-2xl p-4 text-start transition-transform hover:scale-[1.01]"
+      onClick={() => navigate("/skin")}
+      title="Open Skin Studio"
+      type="button"
+    >
+      <SkinFace size={56} skinUrl={skinUrl} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 font-bold text-[11px] text-primary uppercase tracking-wider">
+          <Shirt className="size-3.5" />
+          Skin Studio
+        </div>
+        <div className="mt-0.5 truncate font-semibold text-sm">{username}</div>
+        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className="rounded bg-secondary px-1.5 py-0.5 font-mono">
+            {model === "slim" ? "Slim 3px" : "Classic 4px"}
+          </span>
+          {hasCape && (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-primary">
+              Cape
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/**
+ * Renders the face area (8,8 → 16,16) of a Minecraft skin texture as a
+ * crisp pixel-art canvas. Works for both 64x64 and legacy 64x32 skins.
+ */
+function SkinFace({ skinUrl, size }: { skinUrl: string | null; size: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!skinUrl) {
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 8, 8, 8, 8, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = skinUrl;
+  }, [skinUrl]);
+
+  return (
+    <canvas
+      className="shrink-0 rounded-xl border border-border/50 bg-secondary/40"
+      height={size}
+      ref={canvasRef}
+      style={{ imageRendering: "pixelated", width: size, height: size }}
+      width={size}
+    />
+  );
+}
+
+function QuickLinks() {
+  const navigate = useNavigate();
+
+  const links = [
+    {
+      icon: <HugeiconsIcon icon={ServerIcon} size={18} strokeWidth={2} />,
+      title: "Servers",
+      url: "/servers",
+    },
+    {
+      icon: <HugeiconsIcon icon={Download01Icon} size={18} strokeWidth={2} />,
+      title: "Downloads",
+      url: "/downloads",
+    },
+    {
+      icon: <HugeiconsIcon icon={Package01Icon} size={18} strokeWidth={2} />,
+      title: "Library",
+      url: "/library",
+    },
+    {
+      icon: <HugeiconsIcon icon={Package01Icon} size={18} strokeWidth={2} />,
+      title: "Modpacks",
+      url: "/modpacks",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {links.map((link) => (
+        <button
+          className="glass flex items-center gap-2 rounded-xl px-3 py-3 font-semibold text-xs transition-colors hover:bg-white/[0.08]"
+          key={link.url}
+          onClick={() => navigate(link.url)}
+          type="button"
+        >
+          <span className="text-primary">{link.icon}</span>
+          <span>{link.title}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ── Startup direct connect (unchanged behavior) ─────────────────────── */
 
 /**
  * One-shot startup direct connect: consumed via `startup_direct_connect`.
@@ -137,6 +352,8 @@ function useStartupDirectConnect() {
     // Intentionally runs once per mount: the target is consumed backend-side.
   }, []); // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot startup hook
 }
+
+/* ── Instance selector ───────────────────────────────────────────────── */
 
 function VersionSelect() {
   const { version, setVersion } = useConfig();
@@ -213,10 +430,10 @@ function VersionSelect() {
 
   if (isRenaming && currentInstance) {
     return (
-      <div className="flex h-12 items-center gap-1.5">
+      <div className="flex h-11 items-center gap-1.5">
         <Input
           autoFocus
-          className="h-12 flex-1 rounded-lg border-primary/50 bg-white/10 px-3 text-white text-xs placeholder:text-muted-foreground/60 focus:border-primary shadow-inner"
+          className="h-11 flex-1 rounded-lg border-primary/50 bg-white/10 px-3 text-white text-xs placeholder:text-muted-foreground/60 focus:border-primary shadow-inner"
           onChange={(e) => setCustomNameInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -229,7 +446,7 @@ function VersionSelect() {
           value={customNameInput}
         />
         <Button
-          className="h-12 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm"
+          className="h-11 rounded-lg bg-emerald-600 px-3 font-semibold text-white text-xs shadow-sm hover:bg-emerald-500"
           disabled={!customNameInput.trim() || updateSettings.isPending}
           onClick={handleSaveRename}
           size="sm"
@@ -238,7 +455,7 @@ function VersionSelect() {
           <Check className="size-4" />
         </Button>
         <Button
-          className="h-12 px-2.5 text-xs text-muted-foreground hover:text-white rounded-lg"
+          className="h-11 rounded-lg px-2.5 text-muted-foreground text-xs hover:text-white"
           onClick={() => setIsRenaming(false)}
           size="sm"
           type="button"
@@ -265,7 +482,7 @@ function VersionSelect() {
           value={currentInstance}
         >
           <ComboboxInput
-            className="h-12 w-full rounded-lg border-white/10 bg-white/5 text-white shadow-inner transition-colors placeholder:text-muted-foreground/60 hover:border-white/20 focus:border-primary/50"
+            className="h-11 w-full rounded-lg border-white/10 bg-white/5 text-white shadow-inner transition-colors placeholder:text-muted-foreground/60 hover:border-white/20 focus:border-primary/50"
             placeholder="Select an Instance"
             value={currentInstance?.displayName ?? ""}
           />
@@ -276,20 +493,20 @@ function VersionSelect() {
             <ComboboxList>
               {(inst: InstanceSummary) => (
                 <ComboboxItem
-                  className="cursor-pointer flex items-center justify-between rounded-md px-3 py-2.5 text-xs transition-colors hover:bg-white/10"
+                  className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2.5 text-xs transition-colors hover:bg-white/10"
                   key={inst.id}
                   value={inst}
                 >
-                  <div className="flex flex-col min-w-0 pr-2">
-                    <span className="font-semibold text-white truncate text-xs">
+                  <div className="flex min-w-0 flex-col pr-2">
+                    <span className="truncate font-semibold text-white text-xs">
                       {inst.displayName}
                     </span>
-                    <span className="text-[10px] text-muted-foreground/80 truncate">
+                    <span className="truncate text-[10px] text-muted-foreground/80">
                       {inst.gameVersion} · {inst.loader.toUpperCase()}
                     </span>
                   </div>
                   {inst.id === version && (
-                    <span className="shrink-0 text-[10px] font-medium text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded">
+                    <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-[10px] text-emerald-400">
                       Active
                     </span>
                   )}
@@ -302,7 +519,7 @@ function VersionSelect() {
 
       {currentInstance && (
         <Button
-          className="h-12 w-12 shrink-0 rounded-lg border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white"
+          className="h-11 w-11 shrink-0 rounded-lg border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-white"
           onClick={() => {
             setCustomNameInput(currentInstance.displayName);
             setIsRenaming(true);
@@ -318,6 +535,8 @@ function VersionSelect() {
     </div>
   );
 }
+
+/* ── Play button + launch progress ───────────────────────────────────── */
 
 // Percent at which we consider the launch "almost there".
 const LAUNCH_NEAR_THRESHOLD = 80;
@@ -346,7 +565,7 @@ function LaunchProgressBar({
   const near = isPending && percent >= LAUNCH_NEAR_THRESHOLD;
 
   return (
-    <div className="absolute inset-x-8 bottom-full mb-3 flex flex-col gap-1.5">
+    <div className="absolute inset-x-0 bottom-full mb-3 flex flex-col gap-1.5">
       <div className="flex items-center justify-between font-semibold text-xs drop-shadow">
         <span className="text-gray-300">{label}</span>
         {near ? (
@@ -440,12 +659,12 @@ function PlayButton() {
           setJustLaunched(true);
         }}
         className={cn(
-          "h-14 w-full select-none rounded-lg font-black text-xl uppercase tracking-wider transition-all",
+          "h-16 w-full select-none rounded-xl font-black text-2xl uppercase tracking-wider transition-all",
           isPending
             ? "bg-amber-600/90 text-white shadow-[0_4px_20px_rgba(217,119,6,0.35)]"
             : noVersion
-              ? "border border-white/5 bg-secondary/70 text-muted-foreground"
-              : "bg-emerald-600 text-white shadow-[0_4px_24px_rgba(16,185,129,0.35)] hover:bg-emerald-500 hover:shadow-[0_4px_30px_rgba(16,185,129,0.55)] active:scale-[0.99]"
+              ? "border border-white/10 bg-white/10 text-muted-foreground"
+              : "bg-emerald-600 text-white shadow-[0_6px_32px_rgba(16,185,129,0.45)] hover:bg-emerald-500 hover:shadow-[0_6px_40px_rgba(16,185,129,0.65)] active:scale-[0.98]"
         )}
         disabled={isPending || noVersion}
         title={title}

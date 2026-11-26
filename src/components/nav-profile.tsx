@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Delete01Icon,
   PlusSignIcon,
@@ -25,12 +27,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
 import { useBackend, useBackendMutation } from "@/hooks/use-backend";
 import type { Profile } from "@/invokes";
 import { Button } from "./ui/button";
@@ -38,9 +34,13 @@ import { Field, FieldGroup } from "./ui/field";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-export function NavProfile() {
-  const { isMobile } = useSidebar();
-
+/**
+ * TopProfileSwitcher — compact offline-profile switcher for the top
+ * bar. Shows the active profile name; the dropdown lists every offline
+ * profile, lets the user add or remove profiles, and selects one for
+ * launching. Fully local/offline: no Microsoft account required.
+ */
+export function TopProfileSwitcher() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [newUsername, setNewUsername] = useState("");
@@ -56,10 +56,9 @@ export function NavProfile() {
   });
 
   useEffect(() => {
-    // Backend now returns null when no profile is selected (instead of
-    // a fake "Player" profile). When we have a real selected profile,
-    // use it; otherwise pick the first available one so the user can
-    // hit Play without an extra step.
+    // Backend returns null when no profile is selected. Prefer the real
+    // selected profile; otherwise auto-pick the first one so the user
+    // can hit Play without an extra step.
     if (!profile) {
       if (selectedProfile) {
         const matchedProfile = profiles?.find(
@@ -128,89 +127,82 @@ export function NavProfile() {
 
   return (
     <>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <SidebarMenuButton
-                  className="data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground group-data-[state=collapsed]:rounded-full"
-                  size="lg"
-                  tooltip="Switch Profile"
-                />
-              }
-            >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <HugeiconsIcon icon={UserIcon} />
-              </div>
-              <div className="grid flex-1 text-start text-sm leading-tight">
-                <span className="truncate font-medium">
-                  {profile?.username}
-                </span>
-                <span className="truncate text-xs">{profile?.uuid}</span>
-              </div>
-              <HugeiconsIcon
-                className="ms-auto"
-                icon={UnfoldMoreIcon}
-                strokeWidth={2}
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="min-w-56 rounded-lg"
-              side={isMobile ? "bottom" : "right"}
-              sideOffset={4}
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="text-muted-foreground text-xs">
-                  Profiles
-                </DropdownMenuLabel>
-                {profiles?.map((p) => (
-                  <DropdownMenuItem
-                    className="group flex cursor-pointer items-center justify-between gap-2 p-2"
-                    key={p.uuid}
-                    onClick={() => setProfile(p)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-6 items-center justify-center rounded-md border">
-                        <HugeiconsIcon icon={UserIcon} />
-                      </div>
-                      <span>{p.username}</span>
-                    </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              className="flex h-8 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 text-white text-xs font-semibold transition-colors hover:bg-white/10"
+              title="Switch profile"
+              type="button"
+            />
+          }
+        >
+          <div className="flex size-5 items-center justify-center rounded-full border border-primary/40 bg-primary/20 text-primary">
+            <HugeiconsIcon className="size-3" icon={UserIcon} />
+          </div>
+          <span className="max-w-[110px] truncate">
+            {profile?.username ?? "Player"}
+          </span>
+          <HugeiconsIcon
+            className="text-muted-foreground"
+            icon={UnfoldMoreIcon}
+            strokeWidth={2}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="min-w-56 rounded-lg"
+          side="bottom"
+          sideOffset={6}
+        >
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-muted-foreground text-xs">
+              Game profiles (offline)
+            </DropdownMenuLabel>
+            {profiles?.map((p) => (
+              <DropdownMenuItem
+                className="group flex cursor-pointer items-center justify-between gap-2 p-2"
+                key={p.uuid}
+                onClick={() => setProfile(p)}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex size-6 items-center justify-center rounded-md border">
+                    <HugeiconsIcon icon={UserIcon} />
+                  </div>
+                  <span>{p.username}</span>
+                </div>
 
-                    <button
-                      className="hidden items-center justify-center rounded p-1 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:flex"
-                      onClick={(e) => handleRemoveProfile(p, e)}
-                      title="Remove profile"
-                      type="button"
-                    >
-                      <HugeiconsIcon className="size-4" icon={Delete01Icon} />
-                    </button>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  className="cursor-pointer gap-2 p-2"
-                  onClick={() => setOpenCreateDialog(true)}
+                <button
+                  className="hidden items-center justify-center rounded p-1 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover:flex"
+                  onClick={(e) => handleRemoveProfile(p, e)}
+                  title="Remove profile"
+                  type="button"
                 >
-                  <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                    <HugeiconsIcon
-                      className="size-4"
-                      icon={PlusSignIcon}
-                      strokeWidth={2}
-                    />
-                  </div>
-                  <div className="font-medium text-muted-foreground">
-                    Add Profile
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      </SidebarMenu>
+                  <HugeiconsIcon className="size-4" icon={Delete01Icon} />
+                </button>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              className="cursor-pointer gap-2 p-2"
+              onClick={() => setOpenCreateDialog(true)}
+            >
+              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                <HugeiconsIcon
+                  className="size-4"
+                  icon={PlusSignIcon}
+                  strokeWidth={2}
+                />
+              </div>
+              <div className="font-medium text-muted-foreground">
+                Add Profile
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Dialog onOpenChange={setOpenCreateDialog} open={openCreateDialog}>
         <DialogContent className="sm:max-w-sm">

@@ -7,19 +7,21 @@ import {
   Package01Icon,
   ServerIcon,
   Settings01Icon,
+  ShirtIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
-import {
-  SidebarGroup,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
-export function NavMenu() {
+/**
+ * TopNav — horizontal pill navigation shown in the launcher's top bar.
+ * One entry per section; the active pill is highlighted with the Pars
+ * accent. Icons use Hugeicons (like the rest of the app) plus lucide
+ * for the assistant sparkle.
+ */
+export function TopNav() {
   const { t } = useTranslation();
 
   const items = [
@@ -32,6 +34,11 @@ export function NavMenu() {
       icon: <HugeiconsIcon icon={ServerIcon} strokeWidth={2} />,
       title: t("nav_servers", "Servers"),
       url: "/servers",
+    },
+    {
+      icon: <HugeiconsIcon icon={ShirtIcon} strokeWidth={2} />,
+      title: t("nav_skin", "Skin Studio"),
+      url: "/skin",
     },
     {
       icon: <HugeiconsIcon icon={Package01Icon} strokeWidth={2} />,
@@ -49,7 +56,7 @@ export function NavMenu() {
       url: "/profile",
     },
     {
-      icon: <Sparkles className="size-5 text-primary" />,
+      icon: <Sparkles className="size-4 text-primary" />,
       title: t("nav_assistant", "AI Assistant"),
       url: "/assistant",
     },
@@ -61,27 +68,25 @@ export function NavMenu() {
   ];
 
   return (
-    <div className="space-y-1">
-      <SidebarGroup className="py-1">
-        <SidebarMenu>
-          {items.map((item) => (
-            <NavLink key={item.url} to={item.url}>
-              {({ isActive }) => (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    className="rounded-xl transition-colors"
-                    isActive={isActive}
-                    tooltip={item.title}
-                  >
-                    {item.icon}
-                    <span className="font-semibold">{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+    <nav className="pointer-events-auto flex items-center gap-1 rounded-2xl border-border/40 border bg-background/40 p-1 backdrop-blur-md">
+      {items.map((item) => (
+        <NavLink end={item.url === "/"} key={item.url} to={item.url}>
+          {({ isActive }) => (
+            <span
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 font-semibold text-xs transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
               )}
-            </NavLink>
-          ))}
-        </SidebarMenu>
-      </SidebarGroup>
-    </div>
+              title={item.title}
+            >
+              {item.icon}
+              <span className="hidden lg:inline">{item.title}</span>
+            </span>
+          )}
+        </NavLink>
+      ))}
+    </nav>
   );
 }
