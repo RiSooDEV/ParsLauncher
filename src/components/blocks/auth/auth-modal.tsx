@@ -1,32 +1,11 @@
 ﻿import { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, ShieldAlert, Sparkles, User, UserCheck, X } from 'lucide-react';
+import { Eye, EyeOff, Lock, ShieldAlert, Sparkles, User, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAccountStore } from '@/stores/account';
 import { backend } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-
-const DISPOSABLE_DOMAINS = [
-  '10minutemail.com',
-  '10minutemail.net',
-  'temp-mail.org',
-  'tempmail.com',
-  'tempmail.net',
-  'guerrillamail.com',
-  'mailinator.com',
-  'yopmail.com',
-  'throwawaymail.com',
-  'fakemail.net',
-  'trashmail.com',
-  'mohmal.com',
-  'nada.ltd',
-  'emailondeck.com',
-  'sharklasers.com',
-  'dropmail.me',
-  'burnermail.io',
-  'tempail.com',
-];
 
 export function AuthModal() {
   const { isAuthModalOpen, authModalTab, authModalReason, closeAuthModal, setUser } = useAccountStore();
@@ -40,17 +19,10 @@ export function AuthModal() {
   const [loginPassword, setLoginPassword] = useState('');
 
   const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regError, setRegError] = useState<string | null>(null);
 
   if (!isAuthModalOpen) return null;
-
-  const isTempMail = () => {
-    const domain = regEmail.split('@')[1]?.toLowerCase().trim();
-    if (!domain) return false;
-    return DISPOSABLE_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d));
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,20 +59,9 @@ export function AuthModal() {
     setRegError(null);
 
     const u = regUsername.trim();
-    const em = regEmail.trim().toLowerCase();
 
     if (!u || !/^[a-zA-Z0-9_]{3,16}$/.test(u)) {
       setRegError('نام کاربری باید ۳ تا ۱۶ حرف و فقط شامل حروف انگلیسی، اعداد یا زیرخط باشد.');
-      return;
-    }
-
-    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
-      setRegError('لطفاً یک آدرس ایمیل معتبر وارد کنید.');
-      return;
-    }
-
-    if (isTempMail()) {
-      setRegError('استفاده از ایمیل‌های موقت (فیک) مجاز نمی‌باشد. لطفاً از ایمیل اصلی خود استفاده کنید.');
       return;
     }
 
@@ -113,7 +74,7 @@ export function AuthModal() {
       setLoading(true);
       const res = await backend('pars_account_register', {
         username: u,
-        email: em,
+        email: '',
         password: regPassword,
       });
 
@@ -161,7 +122,7 @@ export function AuthModal() {
             حساب کاربری <span className='text-emerald-400'>Pars</span>
           </h2>
           <p className='text-xs text-muted-foreground mt-1'>
-            سیستم ابری یکپارچه اسکین، کیپ، همگام‌سازی و ورود امن به بازی
+            حساب محلی روی سیستم خودت — ورود سریع، اسکین و همگام‌سازی تنظیمات
           </p>
         </div>
 
@@ -210,7 +171,7 @@ export function AuthModal() {
           <form onSubmit={handleLogin} className='space-y-4'>
             <div>
               <label className='block text-xs font-medium text-muted-foreground mb-1.5'>
-                نام کاربری یا ایمیل
+                نام کاربری
               </label>
               <div className='relative'>
                 <User className='absolute right-3 top-3 size-4 text-muted-foreground' />
@@ -218,7 +179,7 @@ export function AuthModal() {
                   dir='ltr'
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
-                  placeholder='Username or Email'
+                  placeholder='Username'
                   required
                   className='h-11 pr-10 bg-white/5 border-white/10 text-white text-sm focus:border-emerald-500'
                 />
@@ -288,31 +249,6 @@ export function AuthModal() {
 
             <div>
               <label className='block text-xs font-medium text-muted-foreground mb-1'>
-                ایمیل واقعی و معتبر (جهت بازیابی و امنیت)
-              </label>
-              <div className='relative'>
-                <Mail className='absolute right-3 top-3 size-4 text-muted-foreground' />
-                <Input
-                  dir='ltr'
-                  type='email'
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder='you@gmail.com'
-                  required
-                  className={`h-10 pr-10 bg-white/5 border-white/10 text-white text-sm focus:border-emerald-500 ${
-                    isTempMail() ? 'border-red-500 focus:border-red-500' : ''
-                  }`}
-                />
-              </div>
-              {isTempMail() && (
-                <span className='text-[11px] text-red-400 font-medium block mt-1'>
-                  ⚠️ سرویس‌های ایمیل فیک و موقت مسدود هستند. لطفاً از ایمیل شخصی معتبر استفاده کنید.
-                </span>
-              )}
-            </div>
-
-            <div>
-              <label className='block text-xs font-medium text-muted-foreground mb-1'>
                 رمز عبور (حداقل ۶ کاراکتر)
               </label>
               <div className='relative'>
@@ -338,7 +274,7 @@ export function AuthModal() {
 
             <Button
               type='submit'
-              disabled={loading || isTempMail()}
+              disabled={loading}
               className='w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 rounded-xl mt-2'
             >
               {loading ? 'در حال ایجاد حساب...' : 'ساخت حساب کاربری پارس لانچر'}

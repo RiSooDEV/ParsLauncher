@@ -47,8 +47,8 @@ export function GlowButton({
         "relative inline-flex items-center justify-center gap-2 rounded-xl",
         "bg-gradient-to-br from-[#2484EC] to-[#247CD4]",
         "px-6 py-3 font-bold text-white",
-        "shadow-[0_0_0_1px_rgba(36,132,236,0.4),0_0_24px_rgba(36,132,236,0.35)]",
-        "transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(36,132,236,0.6),0_0_32px_rgba(36,132,236,0.5)]",
+        "shadow-[0_0_0_1px_rgba(45,212,196,0.4),0_0_24px_rgba(45,212,196,0.35)]",
+        "transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(45,212,196,0.6),0_0_32px_rgba(45,212,196,0.5)]",
         "hover:-translate-y-0.5 active:translate-y-0",
         "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0",
         className

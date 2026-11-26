@@ -176,7 +176,7 @@ function ServerCard({
       className={cn(
         "flex items-center gap-4 rounded-xl border bg-secondary/40 p-4 transition-colors",
         entry.featured
-          ? "border-primary/40 bg-primary/10 shadow-[0_2px_24px_rgba(36,132,236,0.15)]"
+          ? "border-primary/40 bg-primary/10 shadow-[0_2px_24px_rgba(45,212,196,0.15)]"
           : "border-white/5 hover:bg-secondary/60"
       )}
     >
