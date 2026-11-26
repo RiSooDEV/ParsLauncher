@@ -1,0 +1,15 @@
+pub mod downloader;
+pub mod pars;
+pub mod instances;
+pub mod java;
+pub mod logger;
+pub mod mirrors;
+pub mod modrinth;
+pub mod modpacks;
+pub mod mods;
+pub mod profiles;
+pub mod servers;
+pub mod settings;
+pub mod ai;
+pub mod updater;
+pub mod account;

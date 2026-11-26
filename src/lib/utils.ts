@@ -1,0 +1,23 @@
+import { invoke } from "@tauri-apps/api/core";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import type { InvokeError, Invokes } from "@/invokes";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function backend<T extends keyof Invokes>(
+  name: T,
+  args?: Invokes[T]["args"]
+): Promise<Invokes[T]["returns"]> {
+  return new Promise((resolve, reject) => {
+    invoke<Invokes[T]["returns"]>(name, args)
+      .then((result) => {
+        resolve(result);
+      })
+      .catch((error: InvokeError) => {
+        reject(error);
+      });
+  });
+}
