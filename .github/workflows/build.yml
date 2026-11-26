@@ -48,6 +48,17 @@ jobs:
       - name: Type-check frontend
         run: pnpm exec tsc --noEmit
 
+      - name: Sync Rust dependencies with npm versions
+        run: |
+          Push-Location src-tauri
+          cargo update
+          Pop-Location
+          if (Test-Path "installer/src-tauri/Cargo.toml") {
+            Push-Location installer/src-tauri
+            cargo update
+            Pop-Location
+          }
+
       - name: Build launcher (frontend + Rust + NSIS installer)
         run: pnpm tauri build --bundles nsis
 
