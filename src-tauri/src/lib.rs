@@ -106,8 +106,8 @@ fn parse_direct_connect_args() -> Option<DirectConnectTarget> {
 }
 
 /// Returns the direct-connect target from the command line (once).
-#[tauri::command]
-pub async fn startup_direct_connect(
+#[command]
+async fn startup_direct_connect(
 ) -> Result<Option<DirectConnectTarget>, AppError> {
     let mut guard = STARTUP_DIRECT_CONNECT
         .lock()
