@@ -12,6 +12,12 @@ if (-not (Test-Path $launcherExe)) {
     throw "Launcher executable not found at: $launcherExe. Please build the launcher first."
 }
 
+# Ensure the resources directory exists (git does not track empty folders)
+$resourcesDir = Join-Path $PSScriptRoot "src-tauri\resources"
+if (-not (Test-Path $resourcesDir)) {
+    New-Item -ItemType Directory -Path $resourcesDir -Force | Out-Null
+}
+
 # Compress launcher executable into launcher.gz if not skipped or outdated
 if (-not $SkipCompress -or -not (Test-Path $launcherGz)) {
     Write-Output "Compressing launcher executable to GZip ($launcherGz)..."
