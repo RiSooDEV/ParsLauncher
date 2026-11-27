@@ -58,8 +58,7 @@ impl Drop for RunningInstanceGuard {
 /// Launch Minecraft.
 ///
 /// Returns a structured [`LaunchResult`] on success — never returns
-/// success-as-error (the old code returned `Err(FileReadFailed("Tesat"))`
-/// which was a placeholder).
+/// success-as-error.
 ///
 /// On failure returns a typed [`AppError`] the frontend can map to a
 /// user-facing message and recovery action.
@@ -162,9 +161,7 @@ pub async fn launch_game(
             get_java(java_component.clone())?
         }
     };
-    // Validate the binary actually exists before we spawn. This is a
-    // cheap check that converts a confusing JVM error into a clear
-    // `JavaExecutableInvalid` recovery hint.
+    // Validate the binary actually exists before we spawn.
     if !java.get_bin_file().exists() {
         return Err(AppError::JavaExecutableInvalid(format!(
             "java binary not found at {}",
@@ -274,7 +271,7 @@ pub async fn launch_game(
         .arg(format!("-Xmx{xmx}"))
         .arg("-Djava.net.preferIPv4Stack=true")
         .arg("-Dminecraft.launcher.brand=ParsLauncher")
-        .arg("-Dminecraft.launcher.version=1.2.1");
+        .arg("-Dminecraft.launcher.version=1.1.0");
 
     if is_wayland() {
         // Some Java versions crash on Wayland; force X11 via GDK_BACKEND.
@@ -367,8 +364,8 @@ pub async fn launch_game(
 
     // Offline skin injection: if the user configured a custom skin in Pars Launcher,
     // generate an active resource pack in the instance so Minecraft renders it in-game.
-    // The resource pack overrides the default Steve/Alex textures so offline/cracked
-    // players see their chosen skin instead of the vanilla default.
+    // The resource pack overrides the default player textures so offline/cracked
+    // players see their chosen skin instead of a vanilla default.
     let skins_dir = get_pars_launcher_directory().join("skins");
     let active_skin_path = skins_dir.join("active_skin.png");
     if active_skin_path.exists() {
@@ -393,7 +390,7 @@ pub async fn launch_game(
             let mcmeta = serde_json::json!({
                 "pack": {
                     "pack_format": pack_format,
-                    "supported_formats": [1, 99],
+                    "supported_formats": [1, 999],
                     "description": "Pars Launcher Custom Skin"
                 }
             });
@@ -403,17 +400,25 @@ pub async fn launch_game(
             // Pre-1.20.2 paths:
             let _ = std::fs::write(entity_dir.join("steve.png"), &skin_bytes);
             let _ = std::fs::write(entity_dir.join("alex.png"), &skin_bytes);
-            // 1.20.2+ player texture paths (generic fallback):
-            let _ = std::fs::write(wide_dir.join("steve.png"), &skin_bytes);
-            let _ = std::fs::write(slim_dir.join("alex.png"), &skin_bytes);
-            // 1.20.2+ per-username texture resolution — Minecraft looks for
+            // 1.20.2+ player texture paths. IMPORTANT: since 1.21.9 Minecraft
+            // ships NINE default skins (steve, alex, makena, ari, kai, efe,
+            // noor, zuri, sunny) and offline players are assigned a RANDOM one
+            // based on their UUID — overriding only steve/alex (the old
+            // behavior) left most players wearing their untouched default
+            // skin, which is why launcher skins stopped showing for nearly
+            // everyone. Override every default skin name in BOTH models.
+            const DEFAULT_SKINS: [&str; 9] = [
+                "steve", "alex", "makena", "ari", "kai", "efe", "noor", "zuri", "sunny",
+            ];
+            for name in DEFAULT_SKINS {
+                let _ = std::fs::write(wide_dir.join(format!("{name}.png")), &skin_bytes);
+                let _ = std::fs::write(slim_dir.join(format!("{name}.png")), &skin_bytes);
+            }
+            // Per-username texture resolution — Minecraft looks for
             // <username_lowercase>.png in the player texture directory:
             let username_lower = username.to_lowercase();
             let _ = std::fs::write(wide_dir.join(format!("{username_lower}.png")), &skin_bytes);
             let _ = std::fs::write(slim_dir.join(format!("{username_lower}.png")), &skin_bytes);
-            // Also write default.png as catch-all for unknown texture names:
-            let _ = std::fs::write(wide_dir.join("default.png"), &skin_bytes);
-            let _ = std::fs::write(slim_dir.join("default.png"), &skin_bytes);
 
             // Ensure ParsSkin is listed in options.txt resourcePacks
             let options_path = game_dir.join("options.txt");
@@ -724,7 +729,10 @@ fn version_to_pack_format(version: &str) -> u32 {
         (1, 20, _) => 32,
         (1, 21, 0..=1) => 34,
         (1, 21, 2..=3) => 42,
-        (1, 21, _) => 46,
+        (1, 21, 4..=8) => 46,
+        // 1.21.9+ uses resource pack format 69+; the wide [1,999]
+        // supported_formats range in pack.mcmeta keeps it compatible either way.
+        (1, 21, _) => 69,
         _ => 34, // safe default for unknown versions
     }
 }
