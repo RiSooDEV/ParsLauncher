@@ -6,6 +6,17 @@ use tauri::command;
 use crate::models::error::AppError;
 use crate::LAUNCHER_VERSION;
 
+/// Primary update source: our own server. api.github.com is throttled /
+/// unreliable for many Iranian ISPs, while mymadreseyar.ir (same box as the
+/// Minecraft server's resource pack) is always reachable by our players.
+const MANIFEST_URL: &str = "https://mymadreseyar.ir/pars/pars-launcher.json";
+/// Fallback update source: GitHub releases of the real public repo.
+/// NOTE: 1.0.0 shipped checking the nonexistent ParsProjects org, so old
+/// builds never saw any update; 1.1.0+ checks here when the manifest is
+/// unreachable.
+const GITHUB_API_LATEST: &str = "https://api.github.com/repos/RiSooDEV/ParsLauncher/releases/latest";
+const GITHUB_RELEASES_PAGE: &str = "https://github.com/RiSooDEV/ParsLauncher/releases";
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LauncherUpdateInfo {
@@ -15,6 +26,14 @@ pub struct LauncherUpdateInfo {
     pub release_url: String,
     pub release_notes: String,
     pub download_url: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct UpdateManifest {
+    version: String,
+    #[serde(default)]
+    notes: Option<String>,
+    url: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -53,12 +72,31 @@ pub async fn check_launcher_update() -> Result<LauncherUpdateInfo, AppError> {
         .build()
         .map_err(|e| AppError::UnknownError(e.to_string()))?;
 
-    // Check official GitHub releases. NOTE: this MUST point at the real
-    // public repo (RiSooDEV/ParsLauncher) — the old ParsProjects org never
-    // existed, so 1.0.0 clients silently never saw any update.
-    let repo_url = "https://api.github.com/repos/RiSooDEV/ParsLauncher/releases/latest";
+    // ---- Primary: own-domain manifest (fast + reachable in Iran) ----
+    if let Ok(res) = client
+        .get(MANIFEST_URL)
+        .header(USER_AGENT, "ParsLauncher")
+        .send()
+        .await
+    {
+        if res.status().is_success() {
+            if let Ok(manifest) = res.json::<UpdateManifest>().await {
+                let has_update = is_version_newer(&manifest.version, LAUNCHER_VERSION);
+                return Ok(LauncherUpdateInfo {
+                    has_update,
+                    current_version: LAUNCHER_VERSION.to_string(),
+                    latest_version: manifest.version,
+                    release_url: GITHUB_RELEASES_PAGE.to_string(),
+                    release_notes: manifest.notes.unwrap_or_default(),
+                    download_url: Some(manifest.url),
+                });
+            }
+        }
+    }
+
+    // ---- Fallback: GitHub releases (when the manifest is unreachable) ----
     let resp = client
-        .get(repo_url)
+        .get(GITHUB_API_LATEST)
         .header(USER_AGENT, "ParsLauncher")
         .send()
         .await;
@@ -100,12 +138,12 @@ pub async fn check_launcher_update() -> Result<LauncherUpdateInfo, AppError> {
         }
     }
 
-    // Fallback when GitHub API is rate-limited or offline
+    // Fallback when both sources are unreachable: report up-to-date quietly.
     Ok(LauncherUpdateInfo {
         has_update: false,
         current_version: LAUNCHER_VERSION.to_string(),
         latest_version: LAUNCHER_VERSION.to_string(),
-        release_url: "https://github.com/RiSooDEV/ParsLauncher/releases".to_string(),
+        release_url: GITHUB_RELEASES_PAGE.to_string(),
         release_notes: String::new(),
         download_url: None,
     })
