@@ -57,7 +57,7 @@ pub static GLOBAL_CACHE: LazyLock<sync::Mutex<Global>> = LazyLock::new(|| {
 });
 
 pub const LAUNCHER_NAME: &str = "ParsLauncher";
-pub const LAUNCHER_VERSION: &str = "1.0.0";
+pub const LAUNCHER_VERSION: &str = "1.1.0";
 
 /// Direct-connect target passed on the command line
 /// (`--server <host>[:port]` or `--server <host> --port <port>`).
