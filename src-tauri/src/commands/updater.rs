@@ -53,8 +53,10 @@ pub async fn check_launcher_update() -> Result<LauncherUpdateInfo, AppError> {
         .build()
         .map_err(|e| AppError::UnknownError(e.to_string()))?;
 
-    // Check official GitHub releases
-    let repo_url = "https://api.github.com/repos/ParsProjects/ParsLauncher/releases/latest";
+    // Check official GitHub releases. NOTE: this MUST point at the real
+    // public repo (RiSooDEV/ParsLauncher) — the old ParsProjects org never
+    // existed, so 1.0.0 clients silently never saw any update.
+    let repo_url = "https://api.github.com/repos/RiSooDEV/ParsLauncher/releases/latest";
     let resp = client
         .get(repo_url)
         .header(USER_AGENT, "ParsLauncher")
@@ -67,10 +69,23 @@ pub async fn check_launcher_update() -> Result<LauncherUpdateInfo, AppError> {
                 let latest_tag = release.tag_name.trim_start_matches('v').to_string();
                 let has_update = is_version_newer(&latest_tag, LAUNCHER_VERSION);
                 let download_url = release.assets.and_then(|assets| {
-                    assets
-                        .into_iter()
-                        .find(|a| a.name.ends_with(".exe") || a.name.ends_with(".msi"))
-                        .map(|a| a.browser_download_url)
+                    // Prefer the NSIS setup installer (proper install dir,
+                    // shortcuts, uninstaller); fall back to any other exe/msi.
+                    let mut candidates: Vec<&GithubAsset> = assets
+                        .iter()
+                        .filter(|a| a.name.ends_with(".exe") || a.name.ends_with(".msi"))
+                        .collect();
+                    candidates.sort_by_key(|a| {
+                        let n = a.name.to_ascii_lowercase();
+                        let setup = if n.contains("x64-setup") || n.contains("_setup") {
+                            0
+                        } else {
+                            1
+                        };
+                        let msi = if n.ends_with(".msi") { 0 } else { 1 };
+                        (setup, msi)
+                    });
+                    candidates.first().map(|a| a.browser_download_url.clone())
                 });
 
                 return Ok(LauncherUpdateInfo {
@@ -90,7 +105,7 @@ pub async fn check_launcher_update() -> Result<LauncherUpdateInfo, AppError> {
         has_update: false,
         current_version: LAUNCHER_VERSION.to_string(),
         latest_version: LAUNCHER_VERSION.to_string(),
-        release_url: "https://github.com/ParsProjects/ParsLauncher/releases".to_string(),
+        release_url: "https://github.com/RiSooDEV/ParsLauncher/releases".to_string(),
         release_notes: String::new(),
         download_url: None,
     })
@@ -152,4 +167,3 @@ pub async fn apply_launcher_update(download_url: String) -> Result<(), AppError>
         std::process::exit(0);
     }
 }
-

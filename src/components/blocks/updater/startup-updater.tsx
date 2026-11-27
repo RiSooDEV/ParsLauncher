@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { DownloadCloud, RefreshCw, Sparkles, CheckCircle2 } from 'lucide-react';
+import { DownloadCloud, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { backend } from '@/lib/utils';
 import type { LauncherUpdateInfo } from '@/invokes';
@@ -14,25 +14,15 @@ export function StartupUpdater() {
 
     async function checkUpdate() {
       try {
-        // Silent version check on startup
+        // Silent version check on startup — never auto-install. The user
+        // gets notified and can start the update with one click.
         const res = await backend('check_launcher_update');
         if (cancelled) return;
 
         if (res && res.hasUpdate && res.downloadUrl) {
           setUpdateInfo(res);
-          setIsUpdating(true);
-          setUpdateStatus(`نسخه جدید (${res.latestVersion}) یافت شد. در حال دانلود و نصب خودکار...`);
-
-          // Automatically apply update
-          try {
-            await backend('apply_launcher_update', { downloadUrl: res.downloadUrl });
-          } catch (err: any) {
-            if (!cancelled) {
-              setIsUpdating(false);
-              setUpdateStatus('خطا در اعمال خودکار آپدیت. می‌توانید به صورت دستی دانلود نمایید.');
-              toast.error('خطا در دریافت خودکار نسخه جدید: ' + (err?.message || ''));
-            }
-          }
+          setIsUpdating(false);
+          setUpdateStatus(`نسخه جدید (${res.latestVersion}) منتشر شده و آماده دانلوده — با یه کلیک آپدیت کن!`);
         }
       } catch {
         // SILENT IGNORE: User is offline or rate-limited, silently proceed without any intrusive dialogs or errors
@@ -65,7 +55,7 @@ export function StartupUpdater() {
         </div>
 
         <h3 className='text-lg font-black text-white'>
-          به‌روزرسانی خودکار <span className='text-emerald-400'>Pars Launcher</span>
+          به‌روزرسانی جدید <span className='text-emerald-400'>Pars Launcher</span>
         </h3>
         <p className='text-xs text-muted-foreground mt-1'>
           نسخه فعلی: {updateInfo.currentVersion} ← نسخه جدید: {updateInfo.latestVersion}
@@ -92,24 +82,27 @@ export function StartupUpdater() {
           </div>
         )}
 
-        {!isUpdating && updateInfo.downloadUrl && (
+        {updateInfo.downloadUrl && (
           <div className='flex items-center gap-2'>
-            <button
-              type='button'
-              onClick={async () => {
-                setIsUpdating(true);
-                setUpdateStatus('در حال تلاش مجدد برای دریافت آپدیت...');
-                try {
-                  await backend('apply_launcher_update', { downloadUrl: updateInfo.downloadUrl! });
-                } catch (e: any) {
-                  setIsUpdating(false);
-                  setUpdateStatus('خطا در دانلود آپدیت: ' + e?.message);
-                }
-              }}
-              className='flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all'
-            >
-              تلاش مجدد برای نصب
-            </button>
+            {!isUpdating && (
+              <button
+                type='button'
+                onClick={async () => {
+                  setIsUpdating(true);
+                  setUpdateStatus('در حال دانلود و نصب آپدیت...');
+                  try {
+                    await backend('apply_launcher_update', { downloadUrl: updateInfo.downloadUrl! });
+                  } catch (e: any) {
+                    setIsUpdating(false);
+                    setUpdateStatus('خطا در دانلود آپدیت: ' + (e?.message || ''));
+                    toast.error('خطا در دریافت نسخه جدید: ' + (e?.message || ''));
+                  }
+                }}
+                className='flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all'
+              >
+                دانلود و نصب آپدیت
+              </button>
+            )}
             <button
               type='button'
               onClick={() => setUpdateInfo(null)}
